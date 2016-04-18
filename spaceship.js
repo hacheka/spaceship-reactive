@@ -137,7 +137,9 @@ var playerFiring = Rx.Observable
   )
   .sample(200)
   .startWith(0)
-  .timestamp();
+  .scan(function (acc, current) {
+    return ++acc;
+  }, -1);
 
 var heroShots = Rx.Observable
   .combineLatest(
@@ -145,14 +147,14 @@ var heroShots = Rx.Observable
     spaceship,
     function (shotNumber, spaceship) {
       return {
-        timestamp: shotNumber.timestamp,
+        index: shotNumber,
         x: spaceship.x
       };
     }
   )
-  .distinctUntilChanged(function (shot) { return shot.timestamp; })
+  .distinctUntilChanged(function (shot) { return shot.index; })
   .scan(function (shotArray, shot) {
-    shotArray.push({x: shot.x, y: HERO_Y, index: shot.timestamp });
+    shotArray.push({x: shot.x, y: HERO_Y, index: shot.index });
     return shotArray;
   }, []);
 
@@ -183,18 +185,20 @@ function paintSpaceship(x, y) {
 
 function paintHeroShots(heroShots, enemies) {
   heroShots.forEach(function (shot, i) {
-    for (var l = 0; l < enemies.length; l++) {
-      var enemy = enemies[l];
-      if (!enemy.isDead && collision(shot, enemy)) {
-        scoreSubject.onNext(SCORE_INCREASE);
-        enemy.isDead = true;
-        shot.x = shot.y = -100;
-        break;
+    if (shot.index > 0) {    
+      for (var l = 0; l < enemies.length; l++) {
+        var enemy = enemies[l];
+        if (!enemy.isDead && collision(shot, enemy)) {
+          scoreSubject.onNext(SCORE_INCREASE);
+          enemy.isDead = true;
+          shot.x = shot.y = -100;
+          break;
+        }
       }
+      
+      shot.y -= SHOOTING_SPEED;
+      drawTriangle(shot.x, shot.y, 5, '#ffff00', 'up');
     }
-    
-    shot.y -= SHOOTING_SPEED;
-    drawTriangle(shot.x, shot.y, 5, '#ffff00', 'up');
   });
 }
 
